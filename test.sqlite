@@ -1,0 +1,67 @@
+/* Select *
+ From subscriptions
+ Group By 
+ Limit 100;
+*/
+--Find the range of dates for subscriptions
+/*Select MIN(subscription_start), MAX(subscription_start)
+From subscriptions;*/
+
+With months AS
+ (SELECT
+  '2017-01-01' as first_day,
+  '2017-01-31' as last_day
+UNION
+SELECT
+  '2017-02-01' as first_day,
+  '2017-02-28' as last_day
+UNION
+SELECT
+  '2017-03-01' as first_day,
+  '2017-03-31' as last_day
+),
+
+cross_join AS
+(Select *
+From subscriptions
+Cross Join months),
+
+status AS
+(Select id, first_day AS month, 
+Case
+When  (subscription_start < first_day)
+    AND (
+      subscription_end > first_day
+      OR subscription_end IS NULL
+    ) AND segment = '87' THEN 1
+  ELSE 0
+END as is_active87
+Case
+When (subscription_start < first_day)
+AND (subscription_end Between first_day AND last_day) AND segment = '87' Then 1
+Else 0
+END AS is_canceled87
+
+ (subscription_start < first_day)
+    AND (
+      subscription_end > first_day
+      OR subscription_end IS NULL
+    ) AND segment= '30' THEN 1
+  ELSE 0
+END as is_active30,
+Case
+When (subscription_start < first_day)
+AND (subscription_end Between first_day AND last_day) AND segment = '30' Then 1
+Else 0
+END AS is_canceled30
+FROM cross_join),
+
+status_aggregate AS
+(
+  Select month, SUM(is_active87)As sum_active_87, SUM(is_active30)AS sum_active_30, SUM(is_canceled87)AS sum_canceled_87, SUM(is_canceled30)AS sum_canceled_30
+From status
+Group By month
+)
+
+Select month,sum_canceled_87/sum_active_87, sum_canceled_30/sum_active_30
+From status_aggregate;
